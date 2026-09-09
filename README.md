@@ -17,6 +17,12 @@ API (FastAPI)
 Dashboard Web
 ```
 
+## Dashboard
+
+![Dashboard do Smart Parking CO2, mostrando os cards de resumo (leituras processadas, total de veiculos, CO2 medio e maximo, picos detectados e dia de maior movimento), o grafico de CO2 na semana simulada, o detalhe por dia com os picos marcados, e o comparativo de atividade por dia da semana ao lado da tabela de picos detectados](docs/dashboard.png)
+
+*Dashboard rodando com uma semana simulada (10.080 leituras, 21 picos de CO₂ detectados).*
+
 ## Como funciona
 
 1. **Simulador ([src/simulation.py](src/simulation.py))** — gera uma semana
