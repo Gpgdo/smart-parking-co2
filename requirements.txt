@@ -1,0 +1,8 @@
+numpy
+pandas
+matplotlib
+scipy
+psycopg[binary]
+python-dotenv
+fastapi
+uvicorn[standard]

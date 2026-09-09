@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Parking CO2 — Dashboard</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="vendor/chart.umd.min.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>🅿️ Smart Parking CO₂</h1>
+      <p class="subtitle">
+        Simulador e Analisador de Estacionamento Inteligente com Processamento Digital de Sinais
+      </p>
+    </div>
+    <div class="status" id="status-indicator">
+      <span class="dot" id="status-dot"></span>
+      <span id="status-text">verificando API…</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="cards" id="summary-cards">
+      <!-- preenchido via JS -->
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>CO₂ na semana simulada</h2>
+        <p>Sinal bruto do sensor virtual x sinal filtrado (média móvel)</p>
+      </div>
+      <div class="chart-box chart-box-lg">
+        <canvas id="chart-week"></canvas>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Detalhe por dia</h2>
+        <p>Sinal bruto x filtrado, com os picos de CO₂ detectados</p>
+        <select id="day-select"></select>
+      </div>
+      <div class="chart-box">
+        <canvas id="chart-day"></canvas>
+      </div>
+    </section>
+
+    <div class="grid-2">
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Atividade por dia da semana</h2>
+          <p>Movimentação real de veículos x atividade estimada pelo CO₂</p>
+        </div>
+        <div class="chart-box">
+          <canvas id="chart-daily"></canvas>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Picos de CO₂ detectados</h2>
+          <p>Momentos de maior concentração (possível pico de ocupação)</p>
+        </div>
+        <div class="table-wrap">
+          <table id="peaks-table">
+            <thead>
+              <tr>
+                <th>Data/Hora</th>
+                <th>Dia</th>
+                <th>CO₂ (ppm)</th>
+                <th>Proeminência</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer>
+    Pipeline: Simulador de estacionamento → Sensor virtual de CO₂ → Processamento
+    de sinais em Python → PostgreSQL → API (FastAPI) → Dashboard Web
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
