@@ -8,7 +8,9 @@ Rodar com:
     uvicorn api.main:app --reload
 """
 
+import subprocess
 import sys
+import threading
 from datetime import date
 from pathlib import Path
 from typing import Optional
@@ -45,6 +47,32 @@ app.add_middleware(
 
 def conectar():
     return get_connection(row_factory=dict_row)
+
+
+# Evita que dois cliques em "Executar simulação" rodem o pipeline ao mesmo
+# tempo (é um app de uso local/didático, então um lock simples já basta).
+_lock_simulacao = threading.Lock()
+
+# Ordem de execução do pipeline: simular -> processar sinal -> carregar no banco
+SCRIPTS_PIPELINE = ["simulation.py", "signal_processing.py", "load_to_db.py"]
+
+
+def _executar_script(nome_script: str) -> dict:
+    resultado = subprocess.run(
+        [sys.executable, str(BASE_DIR / "src" / nome_script)],
+        cwd=BASE_DIR,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=120,
+    )
+    return {
+        "script": nome_script,
+        "ok": resultado.returncode == 0,
+        "saida": resultado.stdout[-2000:],
+        "erro": resultado.stderr[-2000:],
+    }
 
 
 COLUNAS_LEITURA = """
@@ -225,6 +253,49 @@ def resumo_geral():
             resumo["dia_maior_atividade_co2"] = linha["weekday"] if linha else None
 
             return resumo
+
+
+@app.post("/api/simulate")
+def executar_simulacao():
+    """
+    Roda o pipeline completo (simulação -> processamento de sinais -> carga
+    no banco) e substitui os dados existentes por uma nova semana simulada.
+    """
+
+    if not _lock_simulacao.acquire(blocking=False):
+        raise HTTPException(
+            status_code=409,
+            detail="Já existe uma simulação em andamento. Aguarde ela terminar.",
+        )
+
+    try:
+        etapas = []
+
+        for script in SCRIPTS_PIPELINE:
+            etapa = _executar_script(script)
+            etapas.append(etapa)
+
+            if not etapa["ok"]:
+                raise HTTPException(
+                    status_code=500,
+                    detail={
+                        "mensagem": f"Falha ao executar {script}.",
+                        "etapas": etapas,
+                    },
+                )
+
+        return {
+            "status": "ok",
+            "mensagem": "Nova simulação gerada e carregada no banco de dados.",
+            "etapas": etapas,
+        }
+    except subprocess.TimeoutExpired as exc:
+        raise HTTPException(
+            status_code=504,
+            detail=f"Tempo esgotado executando {exc.cmd}.",
+        )
+    finally:
+        _lock_simulacao.release()
 
 
 # Serve o dashboard estático (web/index.html, app.js, style.css).

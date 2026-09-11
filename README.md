@@ -100,6 +100,16 @@ Isso cria um container Postgres na porta `5432` e já executa
 Abra **http://localhost:8000** no navegador para ver o dashboard.
 A documentação interativa da API fica em **http://localhost:8000/docs**.
 
+### Gerando uma nova simulação pelo próprio dashboard
+
+Em vez de rodar os três scripts manualmente (passo 4), dá para clicar em
+**"▶ Executar nova simulação"** no topo do dashboard: a API roda o pipeline
+inteiro (`simulation.py` → `signal_processing.py` → `load_to_db.py`) no
+servidor e a página recarrega sozinha com os dados novos. Cada execução usa
+uma semente aleatória diferente (a menos que a variável de ambiente
+`SIM_SEED` esteja definida), então os números mudam a cada clique — os
+dados antigos são substituídos, não acumulados.
+
 ## Endpoints da API
 
 | Método | Rota                  | Descrição                                             |
@@ -111,6 +121,7 @@ A documentação interativa da API fica em **http://localhost:8000/docs**.
 | GET    | `/api/peaks`           | Lista os picos de CO₂ detectados                        |
 | GET    | `/api/stats/daily`     | Movimentação real x atividade estimada por dia da semana|
 | GET    | `/api/stats/summary`   | Resumo geral (médias, máximos, dia de maior atividade)  |
+| POST   | `/api/simulate`        | Roda o pipeline completo e recarrega os dados no banco  |
 
 ## Estrutura do projeto
 

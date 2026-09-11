@@ -29,6 +29,18 @@ async function getJSON(path) {
   return res.json();
 }
 
+async function postJSON(path) {
+  const res = await fetch(API + path, { method: "POST" });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const msg =
+      (data.detail && (data.detail.mensagem || data.detail)) ||
+      `HTTP ${res.status}`;
+    throw new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
+  }
+  return data;
+}
+
 function downsample(rows, maxPoints) {
   if (rows.length <= maxPoints) return rows;
   const step = Math.ceil(rows.length / maxPoints);
@@ -277,4 +289,30 @@ async function init() {
   }
 }
 
+function setupSimulateButton() {
+  const btn = document.getElementById("btn-simulate");
+
+  btn.addEventListener("click", async () => {
+    const textoOriginal = btn.textContent;
+
+    btn.disabled = true;
+    btn.textContent = "Simulando… (pode levar alguns segundos)";
+
+    try {
+      await postJSON("/simulate");
+      // Recarrega a página inteira: mais simples e evita duplicar os
+      // listeners que init() registra (ex.: o <select> de dias).
+      window.location.reload();
+    } catch (err) {
+      console.error(err);
+      alert(
+        "Não foi possível gerar uma nova simulação.\n\n" + err.message
+      );
+      btn.disabled = false;
+      btn.textContent = textoOriginal;
+    }
+  });
+}
+
+setupSimulateButton();
 init();

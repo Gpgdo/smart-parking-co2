@@ -1,3 +1,4 @@
+import os
 import sys
 import numpy as np
 import pandas as pd
@@ -7,10 +8,27 @@ import matplotlib.pyplot as plt
 # Evita UnicodeEncodeError ao imprimir "CO₂" em consoles Windows (cp1252)
 sys.stdout.reconfigure(encoding="utf-8")
 
-np.random.seed(42)
+# Semente aleatória: fixa se SIM_SEED for definida (reprodutibilidade para
+# testes/avaliação), ou sorteada a cada execução para gerar uma semana nova
+# sempre que a simulação for rodada de novo (ex.: pelo botão do dashboard).
+semente_env = os.getenv("SIM_SEED")
+
+semente = (
+    int(semente_env)
+    if semente_env is not None
+    else int(np.random.SeedSequence().entropy % (2**32 - 1))
+)
+
+np.random.seed(semente)
+
+print(f"Semente aleatória utilizada: {semente}")
 
 
-inicio = pd.Timestamp("2026-08-03 00:00:00")
+# Semana simulada = a semana atual (segunda a domingo), para os dados
+# sempre parecerem "recentes" quando uma nova simulação é gerada.
+hoje = pd.Timestamp.now().normalize()
+
+inicio = hoje - pd.Timedelta(days=hoje.weekday())
 
 datas = pd.date_range(
     start=inicio,
