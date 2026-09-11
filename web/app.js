@@ -64,11 +64,11 @@ async function checkHealth() {
 function renderCards(summary) {
   const cards = [
     { label: "Leituras processadas", value: fmt(summary.total_leituras, 0) },
-    { label: "Total de veículos", value: fmt(summary.total_veiculos, 0) },
+    { label: "Minutos ocupados", value: fmt(summary.total_minutos_ocupados, 0) },
     { label: "CO₂ médio (ppm)", value: fmt(summary.co2_medio), cls: "accent" },
     { label: "CO₂ máximo (ppm)", value: fmt(summary.co2_maximo), cls: "warn" },
     { label: "Picos de CO₂ detectados", value: fmt(summary.total_picos, 0) },
-    { label: "Maior movimento real", value: summary.dia_maior_movimento_real ?? "—" },
+    { label: "Maior ocupação real", value: summary.dia_maior_ocupacao_real ?? "—" },
     { label: "Maior atividade (CO₂)", value: summary.dia_maior_atividade_co2 ?? "—" },
   ];
 
@@ -124,8 +124,8 @@ function renderDailyChart(daily) {
       labels: daily.map((d) => d.weekday),
       datasets: [
         {
-          label: "Movimentação real (veículos)",
-          data: daily.map((d) => d.movimento_real),
+          label: "Ocupação real (minutos)",
+          data: daily.map((d) => d.ocupacao_real),
           backgroundColor: "#f6ad55",
           yAxisID: "y",
         },
@@ -137,9 +137,9 @@ function renderDailyChart(daily) {
         },
       ],
     },
-    // Escalas bem diferentes (veículos x índice de CO₂ acumulado):
+    // Escalas bem diferentes (minutos ocupados x índice de CO₂ acumulado):
     // cada série ganha seu próprio eixo Y para as duas ficarem visíveis.
-    options: chartOptions("Veículos", "Índice de atividade (CO₂)"),
+    options: chartOptions("Minutos ocupados", "Índice de atividade (CO₂)"),
   });
 }
 
@@ -296,7 +296,7 @@ function setupSimulateButton() {
     const textoOriginal = btn.textContent;
 
     btn.disabled = true;
-    btn.textContent = "Simulando… (pode levar alguns segundos)";
+    btn.textContent = "Reprocessando… (pode levar alguns segundos)";
 
     try {
       await postJSON("/simulate");
@@ -306,7 +306,7 @@ function setupSimulateButton() {
     } catch (err) {
       console.error(err);
       alert(
-        "Não foi possível gerar uma nova simulação.\n\n" + err.message
+        "Não foi possível reprocessar o dataset.\n\n" + err.message
       );
       btn.disabled = false;
       btn.textContent = textoOriginal;
