@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Smart Parking CO2 — Dashboard</title>
+  <title>Smart Parking CO2 — Dataset Real</title>
   <link rel="stylesheet" href="style.css" />
   <script src="vendor/chart.umd.min.js"></script>
 </head>
@@ -12,11 +12,11 @@
     <div>
       <h1>🅿️ Smart Parking CO₂</h1>
       <p class="subtitle">
-        Simulador e Analisador de Estacionamento Inteligente com Processamento Digital de Sinais
+        Analisador de Ocupação por Sinais de CO₂ — dataset público real (Candanedo; Feldheim, 2016), com Processamento Digital de Sinais
       </p>
     </div>
     <div class="header-actions">
-      <button id="btn-simulate" class="btn-primary">▶ Executar nova simulação</button>
+      <button id="btn-simulate" class="btn-primary">🔄 Reprocessar dataset real</button>
       <div class="status" id="status-indicator">
         <span class="dot" id="status-dot"></span>
         <span id="status-text">verificando API…</span>
@@ -31,8 +31,8 @@
 
     <section class="panel">
       <div class="panel-header">
-        <h2>CO₂ na semana simulada</h2>
-        <p>Sinal bruto do sensor virtual x sinal filtrado (média móvel)</p>
+        <h2>CO₂ no período do dataset</h2>
+        <p>Sinal bruto do sensor real x sinal filtrado (média móvel)</p>
       </div>
       <div class="chart-box chart-box-lg">
         <canvas id="chart-week"></canvas>
@@ -54,7 +54,7 @@
       <section class="panel">
         <div class="panel-header">
           <h2>Atividade por dia da semana</h2>
-          <p>Movimentação real de veículos x atividade estimada pelo CO₂</p>
+          <p>Ocupação real (minutos) x atividade estimada pelo CO₂</p>
         </div>
         <div class="chart-box">
           <canvas id="chart-daily"></canvas>
@@ -84,7 +84,7 @@
   </main>
 
   <footer>
-    Pipeline: Simulador de estacionamento → Sensor virtual de CO₂ → Processamento
+    Pipeline: Dataset real de CO₂/ocupação (Candanedo; Feldheim, 2016) → Processamento
     de sinais em Python → PostgreSQL → API (FastAPI) → Dashboard Web
   </footer>
 

@@ -1,12 +1,20 @@
 # Smart Parking CO₂
 
-Simulador e Analisador de Estacionamento Inteligente utilizando Processamento
-Digital de Sinais.
+Analisador de Ocupação por Sinais de CO₂ utilizando Processamento Digital de
+Sinais, aplicado a um **dataset público real** (não mais simulado).
+
+> **Atualização:** o projeto começou com um simulador (fluxo de veículos +
+> sensor virtual de CO₂), mas a pedido da disciplina passou a usar dados
+> **reais**: o dataset "Occupancy Detection" (CANDANEDO; FELDHEIM, 2016), com
+> CO₂ e ocupação medidos de verdade em uma sala fechada, minuto a minuto. Não
+> existe dataset público de CO₂ dentro de um estacionamento real, então
+> usamos o dataset real mais próximo do mesmo princípio físico (CO₂ como
+> indicador indireto de ocupação/movimentação em ambiente fechado). O
+> simulador antigo continua no repo como referência ([src/simulation.py](src/simulation.py)),
+> mas não faz mais parte do pipeline ativo.
 
 ```
-Simulador de estacionamento
-          ↓
-Sensor virtual de CO₂
+Dataset real de CO₂/ocupação (UCI/Candanedo & Feldheim, 2016)
           ↓
 Processamento de sinais em Python
           ↓
@@ -19,32 +27,37 @@ Dashboard Web
 
 ## Dashboard
 
-![Dashboard do Smart Parking CO2, mostrando os cards de resumo (leituras processadas, total de veiculos, CO2 medio e maximo, picos detectados e dia de maior movimento), o grafico de CO2 na semana simulada, o detalhe por dia com os picos marcados, e o comparativo de atividade por dia da semana ao lado da tabela de picos detectados](docs/dashboard.png)
+![Dashboard do Smart Parking CO2, mostrando os cards de resumo (leituras processadas, minutos ocupados, CO2 medio e maximo, picos detectados, dia de maior ocupacao real e dia de maior atividade estimada pelo CO2), o grafico de CO2 no periodo do dataset real, o detalhe por dia com os picos marcados, e o comparativo de ocupacao real x atividade estimada por dia da semana ao lado da tabela de picos detectados](docs/dashboard.png)
 
-*Dashboard rodando com uma semana simulada (10.080 leituras, 21 picos de CO₂ detectados).*
+*Dashboard rodando com o dataset real (20.560 leituras, 30 picos de CO₂ detectados, 17 dias entre 02/02/2015 e 18/02/2015).*
 
 ## Como funciona
 
-1. **Simulador ([src/simulation.py](src/simulation.py))** — gera uma semana
-   inteira (7 dias, 1 amostra/minuto) de fluxo de veículos em um
-   estacionamento, com padrões de pico (manhã/almoço/final de tarde) e um
-   fator diferente por dia da semana (sexta mais cheia, domingo mais vazio).
-2. **Sensor virtual de CO₂** — a partir do fluxo de veículos, simula o
-   acúmulo de CO₂ no ambiente (emissão por veículo + ventilação natural) e
-   adiciona ruído gaussiano para imitar um sensor real (`co2_sensor`).
-3. **Processamento de sinais ([src/signal_processing.py](src/signal_processing.py))**
-   — aplica um filtro de média móvel para remover o ruído (`co2_filtered`),
-   detecta picos de concentração (`scipy.signal.find_peaks`) e calcula um
-   índice de atividade por dia da semana, comparando a estimativa feita a
-   partir do CO₂ com a movimentação real simulada.
-4. **PostgreSQL** — os resultados processados são carregados em duas tabelas
-   (`parking_readings` e `co2_peaks`) por [src/load_to_db.py](src/load_to_db.py).
-5. **API ([api/main.py](api/main.py))** — FastAPI expõe os dados do banco em
+1. **Carga do dataset real ([src/load_real_data.py](src/load_real_data.py))**
+   — baixa (uma vez) e lê os 3 arquivos do dataset público
+   [Occupancy Detection](https://github.com/LuisM78/Occupancy-detection-data)
+   (CO₂, temperatura, umidade, luz e ocupação real 0/1, ~20.560 amostras a
+   cada ~1 minuto, coletados em fevereiro de 2015).
+2. **Processamento de sinais ([src/signal_processing.py](src/signal_processing.py))**
+   — aplica um filtro de média móvel para suavizar o sinal real de CO₂
+   (`co2_filtered`), detecta picos de concentração (`scipy.signal.find_peaks`)
+   e calcula um índice de atividade por dia da semana, comparando a
+   estimativa feita a partir do CO₂ com a **ocupação real** (minutos ocupados,
+   medidos por foto no dataset original).
+3. **PostgreSQL** — os resultados processados são carregados na tabela
+   `parking_readings` (leituras) e `co2_peaks` (picos) por
+   [src/load_to_db.py](src/load_to_db.py).
+4. **API ([api/main.py](api/main.py))** — FastAPI expõe os dados do banco em
    `/api/*` (leituras, picos, estatísticas por dia, resumo geral) e também
    serve o dashboard.
-6. **Dashboard Web ([web/](web))** — página estática (HTML/CSS/JS + Chart.js)
+5. **Dashboard Web ([web/](web))** — página estática (HTML/CSS/JS + Chart.js)
    que consome a API e mostra gráficos de CO₂, atividade por dia e picos
    detectados.
+
+Fonte do dataset: CANDANEDO, L. M.; FELDHEIM, V. *Accurate occupancy
+detection of an office room from light, temperature, humidity and CO2
+measurements using statistical learning models*. Energy and Buildings,
+v. 112, p. 28-39, 2016.
 
 ## Pré-requisitos
 
@@ -77,16 +90,17 @@ docker compose up -d
 Isso cria um container Postgres na porta `5432` e já executa
 [db/schema.sql](db/schema.sql) automaticamente na primeira inicialização.
 
-### 4. Rodar o pipeline (simulação → processamento → banco)
+### 4. Rodar o pipeline (dataset real → processamento → banco)
 
 ```bash
-.venv\Scripts\python src\simulation.py
+.venv\Scripts\python src\load_real_data.py
 .venv\Scripts\python src\signal_processing.py
 .venv\Scripts\python src\load_to_db.py
 ```
 
-- `simulation.py` gera `data/simulation.csv` e `charts/co2_week.png`
-- `signal_processing.py` gera `data/processed_simulation.csv`,
+- `load_real_data.py` baixa (se preciso) os arquivos brutos em `data/raw/` e
+  gera `data/co2_real_dataset.csv`
+- `signal_processing.py` gera `data/processed_real_dataset.csv`,
   `data/co2_peaks.csv` e os gráficos em `charts/`
 - `load_to_db.py` garante o schema no Postgres e carrega os dois CSVs nas
   tabelas `parking_readings` e `co2_peaks`
@@ -100,15 +114,14 @@ Isso cria um container Postgres na porta `5432` e já executa
 Abra **http://localhost:8000** no navegador para ver o dashboard.
 A documentação interativa da API fica em **http://localhost:8000/docs**.
 
-### Gerando uma nova simulação pelo próprio dashboard
+### Reprocessando pelo próprio dashboard
 
 Em vez de rodar os três scripts manualmente (passo 4), dá para clicar em
-**"▶ Executar nova simulação"** no topo do dashboard: a API roda o pipeline
-inteiro (`simulation.py` → `signal_processing.py` → `load_to_db.py`) no
-servidor e a página recarrega sozinha com os dados novos. Cada execução usa
-uma semente aleatória diferente (a menos que a variável de ambiente
-`SIM_SEED` esteja definida), então os números mudam a cada clique — os
-dados antigos são substituídos, não acumulados.
+**"🔄 Reprocessar dataset real"** no topo do dashboard: a API roda o pipeline
+inteiro (`load_real_data.py` → `signal_processing.py` → `load_to_db.py`) no
+servidor e a página recarrega sozinha. Como o dataset agora é real e fixo
+(não é mais gerado aleatoriamente), o resultado é sempre o mesmo — o botão
+serve para demonstrar o pipeline rodando ao vivo, sem precisar de terminal.
 
 ## Endpoints da API
 
@@ -119,7 +132,7 @@ dados antigos são substituídos, não acumulados.
 | GET    | `/api/readings/latest` | Última leitura registrada                               |
 | GET    | `/api/readings/days`   | Lista os dias disponíveis no banco                      |
 | GET    | `/api/peaks`           | Lista os picos de CO₂ detectados                        |
-| GET    | `/api/stats/daily`     | Movimentação real x atividade estimada por dia da semana|
+| GET    | `/api/stats/daily`     | Ocupação real x atividade estimada por dia da semana    |
 | GET    | `/api/stats/summary`   | Resumo geral (médias, máximos, dia de maior atividade)  |
 | POST   | `/api/simulate`        | Roda o pipeline completo e recarrega os dados no banco  |
 
@@ -128,10 +141,11 @@ dados antigos são substituídos, não acumulados.
 ```
 smart-parking-co2/
 ├── src/
-│   ├── simulation.py         # simulador + sensor virtual de CO2
+│   ├── load_real_data.py     # baixa e prepara o dataset real de CO2/ocupação
 │   ├── signal_processing.py  # filtro, detecção de picos, análise por dia
 │   ├── db.py                 # conexão com o PostgreSQL
-│   └── load_to_db.py         # carga dos CSVs processados no banco
+│   ├── load_to_db.py         # carga dos CSVs processados no banco
+│   └── simulation.py         # LEGADO: simulador sintético (não é mais usado)
 ├── db/
 │   └── schema.sql            # schema das tabelas
 ├── api/
@@ -140,7 +154,9 @@ smart-parking-co2/
 │   ├── index.html
 │   ├── style.css
 │   └── app.js                # dashboard (fetch na API + Chart.js)
-├── data/                     # CSVs gerados pelo pipeline
+├── data/
+│   ├── raw/                  # arquivos brutos do dataset real (baixados 1x)
+│   └── *.csv                 # CSVs gerados pelo pipeline
 ├── charts/                   # gráficos .png gerados pelo pipeline
 ├── docker-compose.yml        # container do PostgreSQL
 ├── requirements.txt

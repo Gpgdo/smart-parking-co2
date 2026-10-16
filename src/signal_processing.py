@@ -15,7 +15,7 @@ base_dir = Path(__file__).resolve().parent.parent
 data_dir = base_dir / "data"
 charts_dir = base_dir / "charts"
 
-arquivo = data_dir / "simulation.csv"
+arquivo = data_dir / "co2_real_dataset.csv"
 
 
 # Ler arquivo
@@ -106,7 +106,13 @@ print(arquivo_grafico)
 # ATIVIDADE DO SINAL
 # -----------------------------
 
-CO2_BASELINE = 450
+# Como agora o CO2 vem de um sensor real (não é mais um valor definido por
+# nós na simulação), a baseline é estimada a partir do próprio sinal: o
+# percentil 5 aproxima bem o nível de CO2 com a sala vazia/bem ventilada.
+CO2_BASELINE = round(df["co2_filtered"].quantile(0.05) / 5) * 5
+
+print()
+print("Baseline de CO₂ estimada (percentil 5 do sinal filtrado):", CO2_BASELINE, "ppm")
 
 df["co2_activity"] = (
     df["co2_filtered"] - CO2_BASELINE
@@ -145,7 +151,7 @@ df["weekday"] = (
 # português, para que o CSV carregado no banco já saia completo)
 
 arquivo_processado = (
-    data_dir / "processed_simulation.csv"
+    data_dir / "processed_real_dataset.csv"
 )
 
 df.to_csv(
@@ -185,27 +191,31 @@ print(
 
 
 # -----------------------------
-# MOVIMENTAÇÃO REAL
+# OCUPAÇÃO REAL (verdade de campo)
 # -----------------------------
+# "occupancy" vem do dataset real: 1 quando a sala estava ocupada naquele
+# minuto (confirmado por foto com timestamp), 0 caso contrário. A soma por
+# dia dá o total de minutos ocupados - o equivalente, aqui, ao que era
+# "vehicle_flow" na versão simulada do projeto.
 
-movimento_real = (
+ocupacao_real = (
     df.groupby("weekday")
-    ["vehicle_flow"]
+    ["occupancy"]
     .sum()
     .sort_values(ascending=False)
 )
 
 
 print()
-print("MOVIMENTAÇÃO REAL")
+print("OCUPAÇÃO REAL (minutos ocupados por dia)")
 print("-----------------------------")
 
-print(movimento_real)
+print(ocupacao_real)
 
 print()
 
 
-dia_real = movimento_real.index[0]
+dia_real = ocupacao_real.index[0]
 
 dia_co2 = atividade_por_dia.index[0]
 
@@ -214,12 +224,12 @@ print("RESULTADO DA ANÁLISE")
 print("-----------------------------")
 
 print(
-    "Maior movimentação real:",
+    "Maior ocupação real:",
     dia_real
 )
 
 print(
-    "Maior movimentação estimada pelo CO₂:",
+    "Maior atividade estimada pelo CO₂:",
     dia_co2
 )
 
@@ -235,7 +245,7 @@ else:
 
     print()
     print(
-        "RESULTADO: a estimativa não correspondeu à simulação."
+        "RESULTADO: a estimativa pelo CO₂ não correspondeu à ocupação real."
     )
 
 
@@ -252,7 +262,7 @@ plt.ylabel(
 )
 
 plt.title(
-    "Movimentação estimada por dia"
+    "Atividade estimada pelo CO₂ por dia"
 )
 
 plt.xticks(

@@ -1,3 +1,8 @@
+# LEGADO: este simulador gerava um sinal SINTÉTICO de CO2/fluxo de veículos.
+# O pipeline ativo do projeto passou a usar um dataset PÚBLICO REAL de CO2 e
+# ocupação (ver src/load_real_data.py), a pedido da disciplina. Este arquivo
+# fica só como referência/comparação - nada mais lê data/simulation.csv.
+
 import os
 import sys
 import numpy as np

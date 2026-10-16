@@ -1,5 +1,5 @@
 """
-Carrega os resultados do processamento de sinais (data/processed_simulation.csv
+Carrega os resultados do processamento de sinais (data/processed_real_dataset.csv
 e data/co2_peaks.csv) para o PostgreSQL.
 
 Uso:
@@ -7,7 +7,7 @@ Uso:
 
 Pré-requisitos:
     1. Postgres rodando (docker compose up -d)
-    2. src/simulation.py e src/signal_processing.py já executados,
+    2. src/load_real_data.py e src/signal_processing.py já executados,
        gerando os arquivos CSV em data/
 """
 
@@ -34,11 +34,11 @@ def criar_schema(conn):
 
 
 def carregar_leituras(conn):
-    arquivo = data_dir / "processed_simulation.csv"
+    arquivo = data_dir / "processed_real_dataset.csv"
 
     if not arquivo.exists():
         raise FileNotFoundError(
-            f"{arquivo} não encontrado. Rode src/simulation.py e "
+            f"{arquivo} não encontrado. Rode src/load_real_data.py e "
             "src/signal_processing.py antes de carregar o banco."
         )
 
@@ -47,11 +47,14 @@ def carregar_leituras(conn):
     colunas = [
         "timestamp",
         "weekday",
-        "vehicle_flow",
-        "co2_ideal",
+        "occupancy",
         "co2_sensor",
         "co2_filtered",
         "co2_activity",
+        "temperature",
+        "humidity",
+        "light",
+        "humidity_ratio",
     ]
 
     registros = list(df[colunas].itertuples(index=False, name=None))
@@ -61,8 +64,9 @@ def carregar_leituras(conn):
 
         with cur.copy(
             "COPY parking_readings "
-            "(timestamp, weekday, vehicle_flow, co2_ideal, "
-            "co2_sensor, co2_filtered, co2_activity) FROM STDIN"
+            "(timestamp, weekday, occupancy, co2_sensor, co2_filtered, "
+            "co2_activity, temperature, humidity, light, humidity_ratio) "
+            "FROM STDIN"
         ) as copy:
             for registro in registros:
                 copy.write_row(registro)
