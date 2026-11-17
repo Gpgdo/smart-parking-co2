@@ -148,16 +148,19 @@ function fmtHour(iso) {
 }
 
 async function renderHourly(day) {
-  const rows = await getJSON(`/stats/hourly?dia=${day}`);
+  const todos = day === "todos";
+  const rows = await getJSON(todos ? "/stats/hourly" : `/stats/hourly?dia=${day}`);
+  const rotulo = (iso) => (todos ? fmtDateTime(iso) : fmtHour(iso));
 
-  document.getElementById("hourly-subtitle").textContent =
-    `Média, mediana e desvio padrão do CO₂ do sensor, por janela de 1 hora — ${day}`;
+  document.getElementById("hourly-subtitle").textContent = todos
+    ? `Média, mediana e desvio padrão do CO₂ do sensor, por janela de 1 hora — todos os dias (${rows.length} janelas)`
+    : `Média, mediana e desvio padrão do CO₂ do sensor, por janela de 1 hora — ${day}`;
 
   charts.hourly?.destroy();
   charts.hourly = new Chart(document.getElementById("chart-hourly"), {
     type: "bar",
     data: {
-      labels: rows.map((r) => fmtHour(r.hora)),
+      labels: rows.map((r) => rotulo(r.hora)),
       datasets: [
         {
           type: "line",
@@ -165,8 +168,8 @@ async function renderHourly(day) {
           data: rows.map((r) => r.media),
           borderColor: "#4fd1c5",
           backgroundColor: "#4fd1c5",
-          borderWidth: 2,
-          pointRadius: 3,
+          borderWidth: todos ? 1.5 : 2,
+          pointRadius: todos ? 0 : 3,
           yAxisID: "y",
         },
         {
@@ -175,10 +178,10 @@ async function renderHourly(day) {
           data: rows.map((r) => r.mediana),
           borderColor: "#f6ad55",
           backgroundColor: "#f6ad55",
-          borderWidth: 2,
-          borderDash: [6, 4],
+          borderDash: todos ? [] : [6, 4],
+          borderWidth: todos ? 1.5 : 2,
           pointStyle: "rectRot",
-          pointRadius: 6,
+          pointRadius: todos ? 0 : 6,
           pointBackgroundColor: "transparent",
           pointBorderColor: "#f6ad55",
           pointBorderWidth: 2,
@@ -200,7 +203,7 @@ async function renderHourly(day) {
     .map(
       (r) => `
         <tr>
-          <td>${fmtHour(r.hora)}</td>
+          <td>${rotulo(r.hora)}</td>
           <td>${r.amostras}</td>
           <td>${fmt(r.media, 2)}</td>
           <td>${fmt(r.mediana, 2)}</td>
@@ -212,6 +215,7 @@ async function renderHourly(day) {
 }
 
 async function renderDayChart(day) {
+  document.getElementById("hourly-day-select").value = day;
   renderHourly(day);
   const rows = await getJSON(`/readings?dia=${day}`);
   const peaksOfDay = allPeaks.filter(
@@ -317,6 +321,13 @@ async function populateDaySelect() {
     .join("");
 
   select.addEventListener("change", () => renderDayChart(select.value));
+
+  // Seletor próprio da estatística por hora: "todos os dias" + cada dia coletado
+  const hourlySelect = document.getElementById("hourly-day-select");
+  hourlySelect.innerHTML =
+    `<option value="todos">Todos os dias (${days.length})</option>` +
+    days.map((d) => `<option value="${d}">${d}</option>`).join("");
+  hourlySelect.addEventListener("change", () => renderHourly(hourlySelect.value));
 
   return days;
 }
