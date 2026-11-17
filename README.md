@@ -134,6 +134,7 @@ serve para demonstrar o pipeline rodando ao vivo, sem precisar de terminal.
 | GET    | `/api/peaks`           | Lista os picos de CO₂ detectados                        |
 | GET    | `/api/stats/daily`     | Ocupação real x atividade estimada por dia da semana    |
 | GET    | `/api/stats/summary`   | Resumo geral (médias, máximos, dia de maior atividade)  |
+| GET    | `/api/stats/hourly`    | Média, mediana e desvio padrão do CO₂ em janelas de 1 hora (`?dia=YYYY-MM-DD`) |
 | POST   | `/api/simulate`        | Roda o pipeline completo e recarrega os dados no banco  |
 
 ## Estrutura do projeto
