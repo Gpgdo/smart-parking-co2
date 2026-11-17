@@ -143,7 +143,76 @@ function renderDailyChart(daily) {
   });
 }
 
+function fmtHour(iso) {
+  return new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+}
+
+async function renderHourly(day) {
+  const rows = await getJSON(`/stats/hourly?dia=${day}`);
+
+  document.getElementById("hourly-subtitle").textContent =
+    `Média, mediana e desvio padrão do CO₂ do sensor, por janela de 1 hora — ${day}`;
+
+  charts.hourly?.destroy();
+  charts.hourly = new Chart(document.getElementById("chart-hourly"), {
+    type: "bar",
+    data: {
+      labels: rows.map((r) => fmtHour(r.hora)),
+      datasets: [
+        {
+          type: "line",
+          label: "Média",
+          data: rows.map((r) => r.media),
+          borderColor: "#4fd1c5",
+          backgroundColor: "#4fd1c5",
+          borderWidth: 2,
+          pointRadius: 3,
+          yAxisID: "y",
+        },
+        {
+          type: "line",
+          label: "Mediana",
+          data: rows.map((r) => r.mediana),
+          borderColor: "#f6ad55",
+          backgroundColor: "#f6ad55",
+          borderWidth: 2,
+          borderDash: [6, 4],
+          pointStyle: "rectRot",
+          pointRadius: 6,
+          pointBackgroundColor: "transparent",
+          pointBorderColor: "#f6ad55",
+          pointBorderWidth: 2,
+          yAxisID: "y",
+        },
+        {
+          type: "bar",
+          label: "Desvio padrão",
+          data: rows.map((r) => r.desvio_padrao),
+          backgroundColor: "rgba(147, 160, 189, 0.55)",
+          yAxisID: "y1",
+        },
+      ],
+    },
+    options: chartOptions("CO₂ (ppm)", "Desvio padrão (ppm)"),
+  });
+
+  document.querySelector("#hourly-table tbody").innerHTML = rows
+    .map(
+      (r) => `
+        <tr>
+          <td>${fmtHour(r.hora)}</td>
+          <td>${r.amostras}</td>
+          <td>${fmt(r.media, 2)}</td>
+          <td>${fmt(r.mediana, 2)}</td>
+          <td>${fmt(r.desvio_padrao, 2)}</td>
+          <td>${fmt(r.ocupacao_pct, 0)}%</td>
+        </tr>`
+    )
+    .join("");
+}
+
 async function renderDayChart(day) {
+  renderHourly(day);
   const rows = await getJSON(`/readings?dia=${day}`);
   const peaksOfDay = allPeaks.filter(
     (p) => p.timestamp.slice(0, 10) === day

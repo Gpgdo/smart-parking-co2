@@ -202,6 +202,42 @@ def estatisticas_por_dia():
             return cur.fetchall()
 
 
+@app.get("/api/stats/hourly")
+def estatisticas_por_hora(
+    dia: Optional[date] = Query(
+        None, description="Filtra por um dia específico (YYYY-MM-DD)"
+    ),
+):
+    """
+    Estatística básica do CO2 (sensor) em janelas de 1 hora: média, mediana
+    e desvio padrão, calculados direto no PostgreSQL. Sem o parâmetro "dia",
+    devolve todas as janelas do dataset.
+    """
+    with conectar() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT
+                    date_trunc('hour', "timestamp") AS hora,
+                    COUNT(*) AS amostras,
+                    ROUND(AVG(co2_sensor)::numeric, 2) AS media,
+                    ROUND(
+                        (percentile_cont(0.5) WITHIN GROUP (ORDER BY co2_sensor))::numeric, 2
+                    ) AS mediana,
+                    ROUND(COALESCE(STDDEV_SAMP(co2_sensor), 0)::numeric, 2) AS desvio_padrao,
+                    ROUND(MIN(co2_sensor)::numeric, 2) AS minimo,
+                    ROUND(MAX(co2_sensor)::numeric, 2) AS maximo,
+                    ROUND((AVG(occupancy) * 100)::numeric, 1) AS ocupacao_pct
+                FROM parking_readings
+                WHERE (%(dia)s::date IS NULL OR "timestamp"::date = %(dia)s::date)
+                GROUP BY date_trunc('hour', "timestamp")
+                ORDER BY hora
+                """,
+                {"dia": dia},
+            )
+            return cur.fetchall()
+
+
 @app.get("/api/stats/summary")
 def resumo_geral():
     with conectar() as conn:

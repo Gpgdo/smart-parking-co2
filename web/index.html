@@ -50,6 +50,33 @@
       </div>
     </section>
 
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Estatística básica em janelas de 1 hora</h2>
+        <p id="hourly-subtitle">Média, mediana e desvio padrão do CO₂ do sensor, calculados no PostgreSQL (dia selecionado acima)</p>
+      </div>
+      <div class="grid-2 hourly-grid">
+        <div class="chart-box">
+          <canvas id="chart-hourly"></canvas>
+        </div>
+        <div class="table-wrap">
+          <table id="hourly-table">
+            <thead>
+              <tr>
+                <th>Janela</th>
+                <th>Amostras</th>
+                <th>Média (ppm)</th>
+                <th>Mediana (ppm)</th>
+                <th>Desvio padrão (ppm)</th>
+                <th>Ocupação</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
     <div class="grid-2">
       <section class="panel">
         <div class="panel-header">
