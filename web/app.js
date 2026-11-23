@@ -312,6 +312,71 @@ function chartOptions(yTitle, y1Title) {
   };
 }
 
+const CORES_GRUPO = ["#93a0bd", "#4fd1c5", "#f6ad55", "#fc8181"];
+
+function nomeGrupo(k, grupo) {
+  const nomes = {
+    2: ["CO₂ baixo e estável", "CO₂ alto e variável"],
+    3: ["CO₂ baixo e estável", "CO₂ médio", "CO₂ muito alto"],
+  };
+  return (nomes[k] && nomes[k][grupo]) || `Grupo ${grupo + 1}`;
+}
+
+async function renderClusters(k) {
+  const data = await getJSON(`/clusters?k=${k}`);
+
+  document.getElementById("kmeans-subtitle").textContent =
+    `${data.k} grupos · ${data.total_janelas} janelas · silhouette ${fmt(data.silhouette, 2)} (quanto mais perto de 1, mais separados os grupos)`;
+
+  const datasets = data.grupos.map((g) => ({
+    label: nomeGrupo(data.k, g.grupo),
+    data: data.janelas
+      .filter((r) => r.grupo === g.grupo)
+      .map((r) => ({ x: r.media, y: r.desvio_padrao, hora: r.hora, ocup: r.ocupacao_pct })),
+    backgroundColor: CORES_GRUPO[g.grupo] + "cc",
+    borderColor: CORES_GRUPO[g.grupo],
+    pointRadius: 4,
+    pointHoverRadius: 7,
+  }));
+
+  const options = chartOptions("Desvio padrão do CO₂ (ppm)");
+  options.interaction = { mode: "nearest", intersect: true };
+  options.scales.x = {
+    type: "linear",
+    title: { display: true, text: "CO₂ médio da janela (ppm)", color: "#93a0bd" },
+    ticks: { color: "#93a0bd" },
+    grid: { color: "#263049" },
+  };
+  options.plugins.tooltip = {
+    callbacks: {
+      label: (ctx) => {
+        const p = ctx.raw;
+        return `${fmtDateTime(p.hora)} · média ${fmt(p.x)} · desvio ${fmt(p.y)} · ocupação ${fmt(p.ocup, 0)}%`;
+      },
+    },
+  };
+
+  charts.kmeans?.destroy();
+  charts.kmeans = new Chart(document.getElementById("chart-kmeans"), {
+    type: "scatter",
+    data: { datasets },
+    options,
+  });
+
+  document.querySelector("#kmeans-table tbody").innerHTML = data.grupos
+    .map(
+      (g) => `
+        <tr>
+          <td><span class="swatch" style="background:${CORES_GRUPO[g.grupo]}"></span>${nomeGrupo(data.k, g.grupo)}</td>
+          <td>${g.janelas}</td>
+          <td>${fmt(g.media_co2)}</td>
+          <td>${fmt(g.desvio_medio)}</td>
+          <td>${fmt(g.pct_ocupada, 0)}%</td>
+        </tr>`
+    )
+    .join("");
+}
+
 async function populateDaySelect() {
   const days = await getJSON("/readings/days");
   const select = document.getElementById("day-select");
@@ -346,6 +411,10 @@ async function init() {
     ]);
 
     allPeaks = peaks;
+
+    const kSelect = document.getElementById("k-select");
+    kSelect.addEventListener("change", () => renderClusters(Number(kSelect.value)));
+    renderClusters(Number(kSelect.value));
 
     renderCards(summary);
     renderDailyChart(daily);

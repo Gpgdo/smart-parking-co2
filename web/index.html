@@ -78,6 +78,39 @@
       </div>
     </section>
 
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Agrupamento K-means das janelas de 1 hora</h2>
+        <p id="kmeans-subtitle">Janelas parecidas (média, mediana e desvio padrão do CO₂) agrupadas com scikit-learn</p>
+        <select id="k-select" aria-label="Quantidade de grupos do K-means">
+          <option value="2">2 grupos</option>
+          <option value="3" selected>3 grupos</option>
+        </select>
+      </div>
+      <div class="grid-2 hourly-grid">
+        <div class="chart-box">
+          <canvas id="chart-kmeans"></canvas>
+        </div>
+        <div>
+          <div class="table-wrap kmeans-table">
+            <table id="kmeans-table">
+              <thead>
+                <tr>
+                  <th>Grupo</th>
+                  <th>Janelas</th>
+                  <th>CO₂ médio (ppm)</th>
+                  <th>Desvio médio (ppm)</th>
+                  <th>Sala ocupada*</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <p class="note">*% das janelas do grupo em que a sala ficou ocupada em pelo menos metade da hora (ocupação real do dataset). O K-means não usa a ocupação para agrupar: ela só serve para comparar.</p>
+        </div>
+      </div>
+    </section>
+
     <div class="grid-2">
       <section class="panel">
         <div class="panel-header">

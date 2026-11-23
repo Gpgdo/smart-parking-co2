@@ -135,6 +135,7 @@ serve para demonstrar o pipeline rodando ao vivo, sem precisar de terminal.
 | GET    | `/api/stats/daily`     | Ocupação real x atividade estimada por dia da semana    |
 | GET    | `/api/stats/summary`   | Resumo geral (médias, máximos, dia de maior atividade)  |
 | GET    | `/api/stats/hourly`    | Média, mediana e desvio padrão do CO₂ em janelas de 1 hora (`?dia=YYYY-MM-DD`) |
+| GET    | `/api/clusters`        | K-means (scikit-learn) sobre as janelas de 1 hora (`?k=2` a `4`, padrão 3) |
 | POST   | `/api/simulate`        | Roda o pipeline completo e recarrega os dados no banco  |
 
 ## Estrutura do projeto
@@ -144,6 +145,7 @@ smart-parking-co2/
 ├── src/
 │   ├── load_real_data.py     # baixa e prepara o dataset real de CO2/ocupação
 │   ├── signal_processing.py  # filtro, detecção de picos, análise por dia
+│   ├── clustering.py         # K-means das janelas de 1 hora (scikit-learn)
 │   ├── db.py                 # conexão com o PostgreSQL
 │   ├── load_to_db.py         # carga dos CSVs processados no banco
 │   └── simulation.py         # LEGADO: simulador sintético (não é mais usado)
