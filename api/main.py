@@ -17,6 +17,7 @@ from datetime import date
 from pathlib import Path
 from typing import Optional
 
+import pandas as pd
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -28,6 +29,7 @@ WEB_DIR = BASE_DIR / "web"
 # Permite importar src/db.py mesmo com api/ e src/ como pastas irmãs
 sys.path.append(str(BASE_DIR / "src"))
 
+from clustering import MIN_AMOSTRAS, agrupar_janelas, resumir_grupos  # noqa: E402
 from db import get_connection  # noqa: E402
 
 app = FastAPI(
@@ -202,6 +204,32 @@ def estatisticas_por_dia():
             return cur.fetchall()
 
 
+SQL_JANELAS_HORARIAS = """
+    SELECT
+        date_trunc('hour', "timestamp") AS hora,
+        COUNT(*) AS amostras,
+        ROUND(AVG(co2_sensor)::numeric, 2) AS media,
+        ROUND(
+            (percentile_cont(0.5) WITHIN GROUP (ORDER BY co2_sensor))::numeric, 2
+        ) AS mediana,
+        ROUND(COALESCE(STDDEV_SAMP(co2_sensor), 0)::numeric, 2) AS desvio_padrao,
+        ROUND(MIN(co2_sensor)::numeric, 2) AS minimo,
+        ROUND(MAX(co2_sensor)::numeric, 2) AS maximo,
+        ROUND((AVG(occupancy) * 100)::numeric, 1) AS ocupacao_pct
+    FROM parking_readings
+    WHERE (%(dia)s::date IS NULL OR "timestamp"::date = %(dia)s::date)
+    GROUP BY date_trunc('hour', "timestamp")
+    ORDER BY hora
+"""
+
+
+def _janelas_horarias(dia: Optional[date] = None):
+    with conectar() as conn:
+        with conn.cursor() as cur:
+            cur.execute(SQL_JANELAS_HORARIAS, {"dia": dia})
+            return cur.fetchall()
+
+
 @app.get("/api/stats/hourly")
 def estatisticas_por_hora(
     dia: Optional[date] = Query(
@@ -213,29 +241,55 @@ def estatisticas_por_hora(
     e desvio padrão, calculados direto no PostgreSQL. Sem o parâmetro "dia",
     devolve todas as janelas do dataset.
     """
-    with conectar() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                SELECT
-                    date_trunc('hour', "timestamp") AS hora,
-                    COUNT(*) AS amostras,
-                    ROUND(AVG(co2_sensor)::numeric, 2) AS media,
-                    ROUND(
-                        (percentile_cont(0.5) WITHIN GROUP (ORDER BY co2_sensor))::numeric, 2
-                    ) AS mediana,
-                    ROUND(COALESCE(STDDEV_SAMP(co2_sensor), 0)::numeric, 2) AS desvio_padrao,
-                    ROUND(MIN(co2_sensor)::numeric, 2) AS minimo,
-                    ROUND(MAX(co2_sensor)::numeric, 2) AS maximo,
-                    ROUND((AVG(occupancy) * 100)::numeric, 1) AS ocupacao_pct
-                FROM parking_readings
-                WHERE (%(dia)s::date IS NULL OR "timestamp"::date = %(dia)s::date)
-                GROUP BY date_trunc('hour', "timestamp")
-                ORDER BY hora
-                """,
-                {"dia": dia},
-            )
-            return cur.fetchall()
+    return _janelas_horarias(dia)
+
+
+@app.get("/api/clusters")
+def agrupar_janelas_kmeans(
+    k: int = Query(3, ge=2, le=4, description="Quantidade de grupos do K-means"),
+):
+    """
+    Agrupa as janelas de 1 hora com K-means (scikit-learn), usando média,
+    mediana e desvio padrão do CO2 como atributos, e compara cada grupo com
+    a ocupação real da sala.
+    """
+    janelas = pd.DataFrame(_janelas_horarias()).astype(
+        {
+            "amostras": int,
+            "media": float,
+            "mediana": float,
+            "desvio_padrao": float,
+            "ocupacao_pct": float,
+        }
+    )
+
+    janelas = janelas[janelas["amostras"] >= MIN_AMOSTRAS].reset_index(drop=True)
+
+    if len(janelas) < k:
+        raise HTTPException(
+            status_code=404,
+            detail="Poucas janelas no banco para agrupar. Carregue o dataset.",
+        )
+
+    dados, silhouette = agrupar_janelas(janelas, k)
+
+    return {
+        "k": k,
+        "silhouette": round(silhouette, 3),
+        "total_janelas": len(dados),
+        "grupos": resumir_grupos(dados).to_dict(orient="records"),
+        "janelas": [
+            {
+                "hora": linha["hora"],
+                "media": linha["media"],
+                "mediana": linha["mediana"],
+                "desvio_padrao": linha["desvio_padrao"],
+                "ocupacao_pct": linha["ocupacao_pct"],
+                "grupo": int(linha["grupo"]),
+            }
+            for linha in dados.to_dict(orient="records")
+        ],
+    }
 
 
 @app.get("/api/stats/summary")
