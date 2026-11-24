@@ -27,9 +27,9 @@ Dashboard Web
 
 ## Dashboard
 
-![Dashboard do Smart Parking CO2, mostrando os cards de resumo (leituras processadas, minutos ocupados, CO2 medio e maximo, picos detectados, dia de maior ocupacao real e dia de maior atividade estimada pelo CO2), o grafico de CO2 no periodo do dataset real, o detalhe por dia com os picos marcados, e o comparativo de ocupacao real x atividade estimada por dia da semana ao lado da tabela de picos detectados](docs/dashboard.png)
+![Dashboard do Smart Parking CO2 com cards de resumo, grafico de CO2 do periodo, detalhe por dia com picos, estatistica basica em janelas de 1 hora (media, mediana e desvio padrao), agrupamento K-means das janelas, comparativo de ocupacao real x atividade estimada por dia da semana e tabela de picos](docs/dashboard.png)
 
-*Dashboard rodando com o dataset real (20.560 leituras, 30 picos de CO₂ detectados, 17 dias entre 02/02/2015 e 18/02/2015).*
+*Dashboard rodando com o dataset real (20.560 leituras, 30 picos de CO₂, 17 dias entre 02/02/2015 e 18/02/2015).*
 
 ## Como funciona
 
@@ -48,11 +48,18 @@ Dashboard Web
    `parking_readings` (leituras) e `co2_peaks` (picos) por
    [src/load_to_db.py](src/load_to_db.py).
 4. **API ([api/main.py](api/main.py))** — FastAPI expõe os dados do banco em
-   `/api/*` (leituras, picos, estatísticas por dia, resumo geral) e também
-   serve o dashboard.
+   `/api/*` (leituras, picos, estatísticas por dia e por hora, agrupamento
+   K-means, resumo geral) e também serve o dashboard.
 5. **Dashboard Web ([web/](web))** — página estática (HTML/CSS/JS + Chart.js)
-   que consome a API e mostra gráficos de CO₂, atividade por dia e picos
-   detectados.
+   que consome a API e mostra:
+   - gráficos de CO₂ (bruto × filtrado) e detalhe por dia, com os picos;
+   - **estatística básica em janelas de 1 hora** (média, mediana e desvio
+     padrão do CO₂, calculados no PostgreSQL), com seletor de dia (os 17 dias
+     coletados ou "todos os dias");
+   - **agrupamento K-means** ([src/clustering.py](src/clustering.py), scikit-learn)
+     das janelas de 1 hora em 2 ou 3 grupos, com a silhouette e a comparação
+     de cada grupo com a ocupação real;
+   - comparativo ocupação real × atividade estimada pelo CO₂ por dia da semana.
 
 Fonte do dataset: CANDANEDO, L. M.; FELDHEIM, V. *Accurate occupancy
 detection of an office room from light, temperature, humidity and CO2
@@ -123,6 +130,39 @@ servidor e a página recarrega sozinha. Como o dataset agora é real e fixo
 (não é mais gerado aleatoriamente), o resultado é sempre o mesmo — o botão
 serve para demonstrar o pipeline rodando ao vivo, sem precisar de terminal.
 
+## Banco de dados
+
+PostgreSQL 16 (Docker), com duas tabelas ([db/schema.sql](db/schema.sql)):
+
+| Tabela | Conteúdo |
+|---|---|
+| `parking_readings` | 20.560 leituras: data/hora, dia da semana, ocupação real (0/1), CO₂ bruto e filtrado, índice de atividade, temperatura, umidade, luz e razão de umidade |
+| `co2_peaks` | 30 picos de CO₂ detectados (data/hora, CO₂ filtrado, proeminência) |
+
+**Backup (dump) pronto:** [db/dump/smart_parking_dump.sql](db/dump/smart_parking_dump.sql). Para restaurar
+num banco vazio (sem rodar o pipeline), na pasta do projeto:
+
+```bash
+docker compose up -d
+docker cp db\dump\smart_parking_dump.sql smart_parking_postgres:/tmp/restore.sql
+docker exec smart_parking_postgres psql -U parking -d smart_parking -f /tmp/restore.sql
+```
+
+Se as tabelas já existirem (banco já populado), o restore dá erro de "já existe"; nesse caso não é
+necessário restaurar.
+
+Para gerar um novo dump (no PowerShell, o redirecionamento `>` corrompe o arquivo, por isso o dump é
+feito dentro do container e depois copiado):
+
+```bash
+docker exec smart_parking_postgres pg_dump -U parking --no-owner --no-privileges -f /tmp/dump.sql smart_parking
+docker cp smart_parking_postgres:/tmp/dump.sql db\dump\smart_parking_dump.sql
+```
+
+## Referências
+
+A lista completa (ABNT) está em [REFERENCIAS.md](REFERENCIAS.md).
+
 ## Endpoints da API
 
 | Método | Rota                  | Descrição                                             |
@@ -150,7 +190,8 @@ smart-parking-co2/
 │   ├── load_to_db.py         # carga dos CSVs processados no banco
 │   └── simulation.py         # LEGADO: simulador sintético (não é mais usado)
 ├── db/
-│   └── schema.sql            # schema das tabelas
+│   ├── schema.sql            # schema das tabelas
+│   └── dump/                 # backup do banco (pg_dump) com os dados reais
 ├── api/
 │   └── main.py               # API FastAPI + serve o dashboard
 ├── web/
@@ -162,6 +203,7 @@ smart-parking-co2/
 │   └── *.csv                 # CSVs gerados pelo pipeline
 ├── charts/                   # gráficos .png gerados pelo pipeline
 ├── docker-compose.yml        # container do PostgreSQL
+├── REFERENCIAS.md            # referências (ABNT)
 ├── requirements.txt
 └── .env.example
 ```
