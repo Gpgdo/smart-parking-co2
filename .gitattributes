@@ -1,0 +1,2 @@
+# O dump usa COPY: converter LF em CRLF corromperia o ultimo campo de cada linha
+db/dump/*.sql -text
