@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict PUvG9l1wJKVnzA7bXPLHrmZQzu4q0BqBjNgG9k6sD3NqN7w5HRuYtBRngRzjdEk
+\restrict Bgq56Ht7rhpClrbo4TgXzSRDKucfpgj59VGchq6KYGrDKQ0gqwOn85rHIMpP1jB
 
 -- Dumped from database version 16.15
 -- Dumped by pg_dump version 16.15
@@ -18,6 +18,18 @@ SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
 
+DROP INDEX IF EXISTS public.idx_parking_readings_timestamp;
+DROP INDEX IF EXISTS public.idx_co2_peaks_timestamp;
+ALTER TABLE IF EXISTS ONLY public.parking_readings DROP CONSTRAINT IF EXISTS parking_readings_timestamp_key;
+ALTER TABLE IF EXISTS ONLY public.parking_readings DROP CONSTRAINT IF EXISTS parking_readings_pkey;
+ALTER TABLE IF EXISTS ONLY public.co2_peaks DROP CONSTRAINT IF EXISTS co2_peaks_timestamp_key;
+ALTER TABLE IF EXISTS ONLY public.co2_peaks DROP CONSTRAINT IF EXISTS co2_peaks_pkey;
+ALTER TABLE IF EXISTS public.parking_readings ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.co2_peaks ALTER COLUMN id DROP DEFAULT;
+DROP SEQUENCE IF EXISTS public.parking_readings_id_seq;
+DROP TABLE IF EXISTS public.parking_readings;
+DROP SEQUENCE IF EXISTS public.co2_peaks_id_seq;
+DROP TABLE IF EXISTS public.co2_peaks;
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
@@ -20778,5 +20790,5 @@ CREATE INDEX idx_parking_readings_timestamp ON public.parking_readings USING btr
 -- PostgreSQL database dump complete
 --
 
-\unrestrict PUvG9l1wJKVnzA7bXPLHrmZQzu4q0BqBjNgG9k6sD3NqN7w5HRuYtBRngRzjdEk
+\unrestrict Bgq56Ht7rhpClrbo4TgXzSRDKucfpgj59VGchq6KYGrDKQ0gqwOn85rHIMpP1jB
 
