@@ -1,29 +1,134 @@
 # Smart Parking CO₂
 
-Analisador de Ocupação por Sinais de CO₂ utilizando Processamento Digital de
-Sinais, aplicado a um **dataset público real** (não mais simulado).
+## 👥 Integrantes
+- Gabriel Pereira Gil de Oliveira — integrante da dupla
+- Guilherme Gonçalves Hermano — integrante da dupla
+
+Projetos em Engenharia da Computação I · Universidade do Vale do Paraíba (Univap)
+Orientador: Prof. Hélio Esperidião
+
+## 📌 Descrição
+Analisador de ocupação de ambientes fechados por sinais de CO₂. O sistema aplica Processamento Digital
+de Sinais a um **dataset público real** de uma sala de escritório (20.560 leituras em 17 dias). Ele filtra o
+sinal, detecta picos, calcula média, mediana e desvio padrão em janelas de 1 hora, agrupa as janelas com
+K-means e compara os resultados com a ocupação real em um dashboard web.
 
 > **Atualização:** o projeto começou com um simulador (fluxo de veículos +
 > sensor virtual de CO₂), mas a pedido da disciplina passou a usar dados
 > **reais**: o dataset "Occupancy Detection" (CANDANEDO; FELDHEIM, 2016), com
 > CO₂ e ocupação medidos de verdade em uma sala fechada, minuto a minuto. Não
-> existe dataset público de CO₂ dentro de um estacionamento real, então
+> encontramos dataset público de CO₂ dentro de um estacionamento real, então
 > usamos o dataset real mais próximo do mesmo princípio físico (CO₂ como
 > indicador indireto de ocupação/movimentação em ambiente fechado). O
 > simulador antigo continua no repo como referência ([src/simulation.py](src/simulation.py)),
 > mas não faz mais parte do pipeline ativo.
 
+## 🛠️ Tecnologias
+- Frontend: HTML, CSS, JavaScript e Chart.js
+- Backend: Python, FastAPI, Uvicorn, pandas, NumPy, SciPy, scikit-learn, Matplotlib, Psycopg e python-dotenv
+- Banco de dados: PostgreSQL 16 (Docker Compose)
+
+## ⚙️ Como executar
+
+Pré-requisitos: Python (o projeto foi desenvolvido com Python 3.14) e Docker Desktop aberto.
+Os comandos são para o PowerShell, **um por vez**.
+
+1. Clone o repositório:
+
+```powershell
+git clone https://github.com/Gpgdo/smart-parking-co2.git
 ```
-Dataset real de CO₂/ocupação (UCI/Candanedo & Feldheim, 2016)
-          ↓
-Processamento de sinais em Python
-          ↓
-PostgreSQL
-          ↓
-API (FastAPI)
-          ↓
-Dashboard Web
+
+```powershell
+cd smart-parking-co2
 ```
+
+2. Crie o ambiente e instale as dependências:
+
+```powershell
+python -m venv .venv
+```
+
+```powershell
+.venv\Scripts\pip install -r requirements.txt
+```
+
+3. Configure o `.env` (os valores do exemplo funcionam com o Docker Compose):
+
+```powershell
+copy .env.example .env
+```
+
+4. Suba o banco e importe os dados:
+
+```powershell
+docker compose up -d --wait
+```
+
+```powershell
+docker cp db\dump\smart_parking_dump.sql smart_parking_postgres:/tmp/backup.sql
+```
+
+```powershell
+docker exec smart_parking_postgres psql -U parking -d smart_parking -v ON_ERROR_STOP=1 -f /tmp/backup.sql
+```
+
+5. Rode o projeto:
+
+```powershell
+.venv\Scripts\uvicorn api.main:app --reload
+```
+
+Abra http://localhost:8000. A documentação da API fica em http://localhost:8000/docs (precisa de internet).
+Para encerrar: `Ctrl+C` e depois `docker compose down`.
+
+### Alternativa: gerar os dados pelo pipeline
+
+Em vez de importar o backup (passo 4), suba o banco e rode:
+
+```powershell
+.venv\Scripts\python src\load_real_data.py
+```
+
+```powershell
+.venv\Scripts\python src\signal_processing.py
+```
+
+```powershell
+.venv\Scripts\python src\load_to_db.py
+```
+
+### Reprocessando pelo próprio dashboard
+
+Em vez de rodar os três scripts manualmente, dá para clicar em
+**"🔄 Reprocessar dataset real"** no topo do dashboard: a API roda o pipeline
+inteiro (`load_real_data.py` → `signal_processing.py` → `load_to_db.py`) no
+servidor e a página recarrega sozinha. Como o dataset agora é real e fixo
+(não é mais gerado aleatoriamente), o resultado é sempre o mesmo — o botão
+serve para demonstrar o pipeline rodando ao vivo, sem precisar de terminal.
+
+## 🗄️ Banco de dados
+Instruções em [db/instrucoes-banco.md](db/instrucoes-banco.md).
+
+| Arquivo | Conteúdo |
+|---|---|
+| [db/schema.sql](db/schema.sql) | Criação das tabelas e índices |
+| [db/seed.sql](db/seed.sql) | Dados iniciais |
+| [db/dump/smart_parking_dump.sql](db/dump/smart_parking_dump.sql) | Backup completo |
+| [db/diagrama-er.png](db/diagrama-er.png) | Diagrama ER |
+
+As tabelas são `parking_readings` (20.560 leituras) e `co2_peaks` (30 picos).
+
+## 📚 Referências
+Ver [referencias/referencias-abnt.pdf](referencias/referencias-abnt.pdf) e
+[referencias/links-consultados.md](referencias/links-consultados.md). A lista também está em
+[REFERENCIAS.md](REFERENCIAS.md).
+
+## 📖 Manual de uso
+[docs/manual-de-uso.pdf](docs/manual-de-uso.pdf)
+
+## 🔗 Repositório
+https://github.com/Gpgdo/smart-parking-co2
 
 ## Dashboard
 
@@ -66,103 +171,6 @@ detection of an office room from light, temperature, humidity and CO2
 measurements using statistical learning models*. Energy and Buildings,
 v. 112, p. 28-39, 2016.
 
-## Pré-requisitos
-
-- Python 3.11+ (o projeto usa o `.venv` já criado, com Python 3.14)
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) — para
-  rodar o PostgreSQL sem precisar instalar nada manualmente
-
-## Passo a passo (Windows / PowerShell)
-
-### 1. Instalar as dependências Python
-
-```bash
-.venv\Scripts\pip install -r requirements.txt
-```
-
-### 2. Configurar variáveis de ambiente
-
-```bash
-copy .env.example .env
-```
-
-(os valores padrão já funcionam com o `docker-compose.yml` deste projeto)
-
-### 3. Subir o PostgreSQL
-
-```bash
-docker compose up -d
-```
-
-Isso cria um container Postgres na porta `5432` e já executa
-[db/schema.sql](db/schema.sql) automaticamente na primeira inicialização.
-
-### 4. Rodar o pipeline (dataset real → processamento → banco)
-
-```bash
-.venv\Scripts\python src\load_real_data.py
-.venv\Scripts\python src\signal_processing.py
-.venv\Scripts\python src\load_to_db.py
-```
-
-- `load_real_data.py` baixa (se preciso) os arquivos brutos em `data/raw/` e
-  gera `data/co2_real_dataset.csv`
-- `signal_processing.py` gera `data/processed_real_dataset.csv`,
-  `data/co2_peaks.csv` e os gráficos em `charts/`
-- `load_to_db.py` garante o schema no Postgres e carrega os dois CSVs nas
-  tabelas `parking_readings` e `co2_peaks`
-
-### 5. Rodar a API + Dashboard
-
-```bash
-.venv\Scripts\uvicorn api.main:app --reload
-```
-
-Abra **http://localhost:8000** no navegador para ver o dashboard.
-A documentação interativa da API fica em **http://localhost:8000/docs**.
-
-### Reprocessando pelo próprio dashboard
-
-Em vez de rodar os três scripts manualmente (passo 4), dá para clicar em
-**"🔄 Reprocessar dataset real"** no topo do dashboard: a API roda o pipeline
-inteiro (`load_real_data.py` → `signal_processing.py` → `load_to_db.py`) no
-servidor e a página recarrega sozinha. Como o dataset agora é real e fixo
-(não é mais gerado aleatoriamente), o resultado é sempre o mesmo — o botão
-serve para demonstrar o pipeline rodando ao vivo, sem precisar de terminal.
-
-## Banco de dados
-
-PostgreSQL 16 (Docker), com duas tabelas ([db/schema.sql](db/schema.sql)):
-
-| Tabela | Conteúdo |
-|---|---|
-| `parking_readings` | 20.560 leituras: data/hora, dia da semana, ocupação real (0/1), CO₂ bruto e filtrado, índice de atividade, temperatura, umidade, luz e razão de umidade |
-| `co2_peaks` | 30 picos de CO₂ detectados (data/hora, CO₂ filtrado, proeminência) |
-
-**Backup (dump) pronto:** [db/dump/smart_parking_dump.sql](db/dump/smart_parking_dump.sql). Para restaurar
-num banco vazio (sem rodar o pipeline), na pasta do projeto:
-
-```bash
-docker compose up -d
-docker cp db\dump\smart_parking_dump.sql smart_parking_postgres:/tmp/restore.sql
-docker exec smart_parking_postgres psql -U parking -d smart_parking -f /tmp/restore.sql
-```
-
-Se as tabelas já existirem (banco já populado), o restore dá erro de "já existe"; nesse caso não é
-necessário restaurar.
-
-Para gerar um novo dump (no PowerShell, o redirecionamento `>` corrompe o arquivo, por isso o dump é
-feito dentro do container e depois copiado):
-
-```bash
-docker exec smart_parking_postgres pg_dump -U parking --no-owner --no-privileges -f /tmp/dump.sql smart_parking
-docker cp smart_parking_postgres:/tmp/dump.sql db\dump\smart_parking_dump.sql
-```
-
-## Referências
-
-A lista completa (ABNT) está em [REFERENCIAS.md](REFERENCIAS.md).
-
 ## Endpoints da API
 
 | Método | Rota                  | Descrição                                             |
@@ -191,6 +199,9 @@ smart-parking-co2/
 │   └── simulation.py         # LEGADO: simulador sintético (não é mais usado)
 ├── db/
 │   ├── schema.sql            # schema das tabelas
+│   ├── seed.sql              # dados iniciais (INSERTs)
+│   ├── diagrama-er.png       # diagrama entidade-relacionamento
+│   ├── instrucoes-banco.md   # como importar o banco
 │   └── dump/                 # backup do banco (pg_dump) com os dados reais
 ├── api/
 │   └── main.py               # API FastAPI + serve o dashboard
@@ -203,15 +214,12 @@ smart-parking-co2/
 │   └── *.csv                 # CSVs gerados pelo pipeline
 ├── charts/                   # gráficos .png gerados pelo pipeline
 ├── docker-compose.yml        # container do PostgreSQL
+├── referencias/              # referências em PDF (ABNT) e links consultados
+├── docs/                     # manual de uso (PDF) e imagem do dashboard
 ├── REFERENCIAS.md            # referências (ABNT)
 ├── requirements.txt
 └── .env.example
 ```
-
-## Rodando de novo com dados novos
-
-Basta repetir os passos 4 e 5 — cada execução de `load_to_db.py` limpa e
-recarrega as tabelas, então não há duplicação.
 
 ## Solução de problemas
 
